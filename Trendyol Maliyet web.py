@@ -4,36 +4,33 @@ st.set_page_config(page_title="Trendyol Maliyet Hesaplama", layout="centered")
 st.title("📦 Trendyol Maliyet Hesaplama")
 
 # === Ürün Bilgisi ===
-st.header("1️⃣ Ürün Bilgisi")
+st.header("🛒 Ürün Bilgisi")
 satis = st.number_input("Satış Fiyatı (TL)", min_value=0.0, step=0.01)
 maliyet = st.number_input("Ürün Maliyeti (TL)", min_value=0.0, step=0.01)
 kdv_dahil = st.checkbox("KDV Dahil", value=True)
 komisyon = st.number_input("Komisyon (%)", min_value=0.0, step=0.1)
 
 # === Kargo Bilgisi ===
-st.header("2️⃣ Kargo Bilgisi")
+st.header("🚚 Kargo Bilgisi")
 kargo_tipi = st.selectbox("Kargo Tipi", ["PTT", "Sürat", "Desi"])
 
 col1, col2 = st.columns(2)
 with col1:
-    en = st.number_input("En (cm)", min_value=0.0, step=0.1)
-    boy = st.number_input("Boy (cm)", min_value=0.0, step=0.1)
+    en = st.number_input("En (cm)", min_value=0.0)
+    boy = st.number_input("Boy (cm)", min_value=0.0)
 with col2:
-    yukseklik = st.number_input("Yükseklik (cm)", min_value=0.0, step=0.1)
-    kg = st.number_input("Ağırlık (kg)", min_value=0.0, step=0.1)
+    yukseklik = st.number_input("Yükseklik (cm)", min_value=0.0)
+    kg = st.number_input("Ağırlık (kg)", min_value=0.0)
 
-# === Desi Hesaplama ===
+# === Fonksiyonlar ===
 def hesapla_desi(en, boy, yukseklik, kg):
-    hacimsel_desi = (en * boy * yukseklik) / 3000
-    kullanilan = max(hacimsel_desi, kg)
-    return round(hacimsel_desi, 2), round(kullanilan, 2)
+    hacimsel = (en * boy * yukseklik) / 3000
+    kullanilan = max(hacimsel, kg)
+    return round(hacimsel, 2), round(kullanilan, 2)
 
-hacimsel_desi, kullanilan_desi = hesapla_desi(en, boy, yukseklik, kg)
-
-# === Kargo Fiyatları ===
-def get_desi_price(desi: float, kargo_firmasi: str) -> float:
+def get_desi_price(desi, firma):
     desi_int = int(round(min(desi, 20)))
-    desi_fiyatlari = {
+    fiyatlar = {
         "PTT": [
             62.03, 62.03, 62.03, 76.80, 76.80, 80.44, 85.47, 90.53, 100.59, 110.68,
             125.81, 132.01, 138.64, 145.31, 151.95, 158.58, 165.22, 171.86, 178.50, 185.17, 191.81
@@ -44,16 +41,16 @@ def get_desi_price(desi: float, kargo_firmasi: str) -> float:
         ]
     }
     try:
-        fiyat_kdv_haric = desi_fiyatlari[kargo_firmasi][desi_int]
-        return round(fiyat_kdv_haric * 1.20, 2)
-    except (KeyError, IndexError):
+        return round(fiyatlar[firma][desi_int] * 1.20, 2)
+    except:
         return 0.0
 
+# === Desi Hesabı ===
+hacimsel_desi, kullanilan_desi = hesapla_desi(en, boy, yukseklik, kg)
 ptt_fiyat = get_desi_price(kullanilan_desi, "PTT")
 surat_fiyat = get_desi_price(kullanilan_desi, "Sürat")
 
-desi_text = f"📏 Desi (Hacimsel): {hacimsel_desi}, Kullanılan: {kullanilan_desi} | 🚚 PTT: {ptt_fiyat} TL, Sürat: {surat_fiyat} TL"
-st.info(desi_text)
+st.info(f"📏 Desi (Hacimsel): {hacimsel_desi} / Kullanılan: {kullanilan_desi} → 🟦 PTT: {ptt_fiyat} TL | 🟥 Sürat: {surat_fiyat} TL")
 
 # === Hesaplama ===
 if st.button("💰 Hesapla"):
@@ -67,11 +64,8 @@ if st.button("💰 Hesapla"):
             kargo = (51.66 if kargo_tipi == "PTT" else 62.49) * 1.20
         else:
             kargo = get_desi_price(kullanilan_desi, kargo_tipi)
-    elif kargo_tipi == "Desi":
-        kargo = get_desi_price(kullanilan_desi, "PTT")
     else:
-        st.error("Geçersiz kargo tipi")
-        st.stop()
+        kargo = get_desi_price(kullanilan_desi, "PTT")
 
     hizmet = 10.19
     stopaj = round(0.0083 * satis, 2)
@@ -83,17 +77,16 @@ if st.button("💰 Hesapla"):
     kar_tl = satis - toplam_maliyet
     kar_yuzde = (kar_tl / satis) * 100 if satis > 0 else 0
 
-    renk = "✅" if kar_tl >= 0 else "❌"
     st.subheader("📊 Sonuçlar")
     st.write(f"**Satış Fiyatı:** {satis:.2f} TL")
     st.write(f"**Ürün Maliyeti (KDV Dahil):** {maliyet_tl:.2f} TL")
-    st.write(f"**Kargo Ücreti (KDV Dahil):** {kargo_tutar:.2f} TL")
+    st.write(f"**Kargo Ücreti:** {kargo_tutar:.2f} TL")
     st.write(f"**Komisyon:** {komisyon_tutar:.2f} TL")
     st.write(f"**Hizmet Bedeli:** {hizmet:.2f} TL")
     st.write(f"**Stopaj:** {stopaj:.2f} TL")
-    st.write(f"**Toplam Maliyet:** `{toplam_maliyet:.2f}` TL")
+    st.write(f"**Toplam Maliyet:** {toplam_maliyet:.2f} TL")
 
     if kar_tl >= 0:
-        st.success(f"{renk} Kar (TL): {kar_tl:.2f} TL | Kar (%): {kar_yuzde:.2f}%")
+        st.success(f"✅ Kar: {kar_tl:.2f} TL ({kar_yuzde:.2f}%)")
     else:
-        st.error(f"{renk} Zarar (TL): {kar_tl:.2f} TL | Zarar (%): {kar_yuzde:.2f}%")
+        st.error(f"❌ Zarar: {kar_tl:.2f} TL ({kar_yuzde:.2f}%)")
